@@ -7,7 +7,6 @@ from tkinter import messagebox
 from tkinter import scrolledtext
 import tkinter as tk
 
-
 def DestroyLoginWindow():
 	signinup_button.destroy()
 	username_label.destroy()
@@ -16,7 +15,6 @@ def DestroyLoginWindow():
 	password_textbox.destroy()
 	linkforSignupin.destroy()
 	signinup_lbl.destroy()
-
 
 def GenerateTextboxes():
 	global username_label, username_textbox, password_label, password_textbox
@@ -34,22 +32,23 @@ def ShowSignInWindow():
 	if signup_window_visible_status:
 		signinup_lbl['text'] = 'Login Window'
 		signinup_button.configure(text = "Sign In", command=ValidateSignIn)
-		linkforSignupin['text'] = 'Register'
+		linkforSignupin['text'] = 'No Account? Click here to register'
 		linkforSignupin.bind("<Button-1>", lambda e: ShowSignUpWindow())
 	else:
 		signinup_lbl = Label(window, text="Login to Chat Room")
 		signinup_lbl.pack()
 		GenerateTextboxes()
 		signinup_button = Button(window, text="Sign In", command=ValidateSignIn)
-		signinup_button.pack();
-		linkforSignupin = Label(window, text="Register", fg="blue", cursor="hand2")
-		linkforSignupin.pack()
+		signinup_button.place(x = 210, y = 120)
+		linkforSignupin = Label(window, text="No Account? Click here to register", fg="blue", cursor="hand2")
+		linkforSignupin.place(x = 160, y = 150)
+		linkforSignupin.configure(anchor="center")
 		linkforSignupin.bind("<Button-1>", lambda e: ShowSignUpWindow())
 
 def ShowSignUpWindow():
 	global signup_window_visible_status
 	signup_window_visible_status = 1
-	signinup_lbl['text'] = 'Register Window'
+	signinup_lbl['text'] = 'Registration Window'
 	linkforSignupin['text'] = 'Already registered! Sign In'
 	linkforSignupin.bind("<Button-1>", lambda e: ShowSignInWindow())
 	signinup_button.configure(text = "Sign Up", command = SignUp)
@@ -81,7 +80,7 @@ def ShowChatWindow():
 	send_button.place(x = 415, y = 505)
 
 	signout_button = Button(window, text="Signout", command=SignOut)
-	signout_button.place(x = 300, y = 535)
+	signout_button.place(x = 210, y = 535)
 
 def SignOut():
 	global login_status
@@ -94,9 +93,10 @@ def SignOut():
 	signout_button.destroy()
 	message_box.destroy()
 	active_users_textbox.destroy()
-	ShowSignInWindow()
-
-
+	try:
+		ShowSignInWindow()
+	except:
+		ShowSignInWindow()
 
 def GetUserNameAndPassword():
 	global UserName, Password
@@ -104,63 +104,74 @@ def GetUserNameAndPassword():
 	Password = password_textbox.get();
 
 def GetActiveUsersData():
-	URL = "http://165.22.14.77:8080/Anwesh/ChatRoom/GetActiveUsersData.jsp?UserName={}".format(UserName)
-	while login_status:
-		response = requests.get(URL)
-		if login_status:
+	try:
+		while True:
+			response = my_session.get(f'{url}GetActiveUsersData.jsp?UserName={UserName}')
 			active_users_textbox.config(state = 'normal')
 			active_users_textbox.delete('1.0', END)
 			active_users_textbox.insert(1.0, response.text.replace("&#8226;", "-->"))
 			active_users_textbox.yview('end')
 			active_users_textbox.config(state = DISABLED)
+	except:
+		print('',end = '')
+
 def GetMessages():
-	URL = "http://165.22.14.77:8080/Anwesh/ChatRoom/GetMessage.jsp?UserName={}".format(UserName)
-	while login_status:
-		response = requests.get(URL)
-		if login_status:
+	try:
+		while login_status:
+			response = my_session.get(f'{url}GetMessage.jsp?UserName={UserName}')
 			chatbox.config(state = 'normal')
 			chatbox.delete('1.0', END)
 			chatbox.insert(1.0, response.text)
 			chatbox.yview('end')
 			chatbox.config(state = DISABLED)
-
-		# chatbox.insert(1.0, response.text);
+	except:
+		print('',end = '')
 
 def SendMessage():
 	Message = message_box.get()
 	message_box.delete(0, last=END)
-	URL = "http://165.22.14.77:8080/Anwesh/ChatRoom/SendMessage.jsp?UserName={}&Message={}".format(UserName, Message);
-	response = requests.get(URL);
+	response = my_session.get(f'{url}SendMessage.jsp?UserName={UserName}&Message={Message}');
 	# if(str(response).find("200") >= 0):
 	# 	messagebox.showinfo('status', 'Message sent successfully.')
 
 def ValidateSignIn():
 	global login_status
 	GetUserNameAndPassword()
-	URL = "http://165.22.14.77:8080/Anwesh/ChatRoom/Login.jsp?UserName={}&Password={}".format(UserName, Password);
-	response = requests.get(URL);
-	if (response.text.find("Success") >= 0):
-		messagebox.showinfo('Success', 'Login Successful.')
-		ShowChatWindow()
-		login_status = 1
+	if UserName and Password:
+		response = my_session.get(f'{url}Login.jsp?UserName={UserName}&Password={Password}');
+		# print(str(response.text))
+		if (response.text.find("Success") >= 0):
+			messagebox.showinfo('Success', 'Login Successful.')
+			ShowChatWindow()
+			login_status = 1
 
-		Thread(target = GetActiveUsersData).start()
-		Thread(target = GetMessages).start()
+			Thread(target = GetActiveUsersData).start()
+			Thread(target = GetMessages).start()
 
-	elif(response.text.find("Failed") >= 0):
-		messagebox.showinfo('Failed', 'Invalid Login Credentials.')
+		elif(response.text.find("Failed") >= 0):
+			messagebox.showinfo('Failed', 'Invalid Login Credentials.')
+	else:
+		messagebox.showinfo('Warning', 'Please fill the required details.')
+
 
 def SignUp():
 	GetUserNameAndPassword()
-	URL = "http://165.22.14.77:8080/Anwesh/ChatRoom/Register.jsp?UserName={}&Password={}".format(UserName, Password);
-	response = requests.get(URL);
-	if (response.text.find("Registered") >= 0):
-		messagebox.showinfo('Success', 'Registered Successfully.')
-		ShowSignInWindow()
-	elif response.text:
-		messagebox.showinfo('Registration Failed', response.text)
+	if UserName and Password:
+		response = my_session.get(f'{url}Register.jsp?UserName={UserName}&Password={Password});');
+		if (response.text.find("Registered") >= 0):
+			messagebox.showinfo('Success', 'Registered Successfully.')
+			ShowSignInWindow()
+		elif response.text:
+			messagebox.showinfo('Registration Failed', response.text)
+	else:
+		messagebox.showinfo('Warning', 'Please fill the required details.')
 
+def CreateConnection():
+	response = my_session.get(f'{url}Connection.jsp?mode=A')
+	# print(str(response.text))
 
+url = 'http://165.22.14.77:8080/Anwesh/Chat/'
+my_session = requests.Session()
 signup_window_visible_status = 0
 login_status = 0
 window = Tk()
@@ -168,4 +179,5 @@ window.geometry('500x600')
 window.resizable(0, 0)
 window.title('Chat Room')
 ShowSignInWindow()
+CreateConnection()
 mainloop()
